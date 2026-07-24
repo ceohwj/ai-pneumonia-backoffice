@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.patients import Patient
     from app.models.ai_analysis_results import AIAnalysisResult
     from app.models.xray_images import XrayImages
+    from app.models.email_jobs import EmailJob
 
 
 class MedicalRecord(Base):
@@ -63,4 +64,10 @@ class MedicalRecord(Base):
     ai_analysis_results: Mapped[list["AIAnalysisResult"]] = relationship(
         back_populates="medical_record",
         cascade="all, delete-orphan",
+    )
+
+    email_jobs: Mapped[list["EmailJob"]] = relationship(
+        back_populates="medical_record",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

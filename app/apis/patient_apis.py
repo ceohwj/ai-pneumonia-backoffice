@@ -70,6 +70,7 @@ def _to_patient_response(
         age=patient.age,
         gender=gender_mapping.get(patient.gender),
         phone_number=patient.phone,
+        email=patient.email,
         created_at=patient.created_at,
         updated_at=patient.updated_at,
     )
@@ -227,6 +228,7 @@ async def create_patient(
             else GenderEnum.F
         ),
         phone=body.phone_number,
+        email=str(body.email) if body.email else None,
     )
 
     db.add(patient)
@@ -256,6 +258,7 @@ async def create_patient(
             else PatientGender.FEMALE
         ),
         phone_number=patient.phone,
+        email=patient.email,
         created_at=patient.created_at,
         updated_at=patient.updated_at,
     )
@@ -381,6 +384,7 @@ async def get_patient_list(
                 else PatientGender.FEMALE
             ),
             phone_number=patient.phone,
+            email=patient.email,
             created_at=patient.created_at,
             updated_at=patient.updated_at,
         )
@@ -446,6 +450,7 @@ async def get_patient_detail(
             else PatientGender.FEMALE
         ),
         phone_number=patient.phone,
+        email=patient.email,
         age=patient.age,
     )
 
@@ -482,6 +487,7 @@ async def update_patient(
 
         patient.name = body.name
         patient.phone = body.phone_number
+        patient.email = str(body.email) if body.email else None
 
         await db.commit()
         await db.refresh(patient)

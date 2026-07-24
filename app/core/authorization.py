@@ -12,6 +12,7 @@ from app.models.users import DepartmentEnum, RoleEnum, User
 def require_permissions(
     allowed_departments: tuple[DepartmentEnum, ...] | None = None,
     allowed_roles: tuple[RoleEnum, ...] | None = None,
+    admin_bypass: bool = True,
 ):
     async def checker(
         user_id: int = Depends(get_current_user_id),
@@ -31,8 +32,8 @@ def require_permissions(
                 detail="인증된 사용자를 찾을 수 없습니다.",
             )
 
-        # ADMIN은 모든 API 허용
-        if user.role == RoleEnum.ADMIN:
+        # 기본 정책은 ADMIN 전체 허용이며, 복합 권한 API에서는 우회하지 않습니다.
+        if admin_bypass and user.role == RoleEnum.ADMIN:
             return user
 
         if allowed_roles and user.role not in allowed_roles:
