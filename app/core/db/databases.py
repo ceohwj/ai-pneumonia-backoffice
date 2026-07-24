@@ -12,7 +12,10 @@ DATABASE_URL = f"{DATABASE_PREFIX}{DATABASE_URI}"
 async_engine = create_async_engine(
     DATABASE_URL,
     echo=settings.DB_ECHO,
-    pool_pre_ping=True,
+    # SQLAlchemy 2.0.49의 MySQL pre-ping은 ping()을 호출하지만
+    # asyncmy 어댑터는 ping(reconnect)을 요구해 TypeError가 발생합니다.
+    # 오래된 연결은 pool_recycle로 교체합니다.
+    pool_pre_ping=False,
     pool_size=settings.DB_POOL_SIZE,
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_timeout=settings.DB_POOL_TIMEOUT,
@@ -29,4 +32,3 @@ Base = declarative_base()
 async def async_get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as db:
         yield db
-

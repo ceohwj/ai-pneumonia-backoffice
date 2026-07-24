@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Annotated
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # 환자 정보 등록 스키마
 class PatientGender(str, Enum):
@@ -26,6 +26,10 @@ class PatientCreate(BaseModel):
         pattern=r"^\d{10,11}$",
         description="숫자로 구성된 휴대폰 번호",
     )
+    email: EmailStr | None = Field(
+        default=None,
+        description="AI 예측 결과 수신 이메일",
+    )
 
     @field_validator("name")
     @classmethod
@@ -46,6 +50,7 @@ class PatientResponse(BaseModel):
     age: int
     gender: PatientGender | None
     phone_number: str
+    email: EmailStr | None
     created_at: datetime
     updated_at: datetime | None
 
@@ -55,6 +60,7 @@ class PatientDetailResponse(BaseModel):
     name: str
     gender: PatientGender | None
     phone_number: str
+    email: EmailStr | None
     age: int
 
 # 환자 정보 수정
@@ -67,6 +73,7 @@ class PatientUpdateRequest(BaseModel):
         str,
         Field(pattern=r"^\d{10,11}$"),
     ]
+    email: EmailStr | None = None
 
     @field_validator("name", mode="before")
     @classmethod

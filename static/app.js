@@ -103,14 +103,19 @@ async function checkAuth() {
 function updateNav() {
     const authLink = document.getElementById('auth-link');
     const adminLinkContainer = document.getElementById('admin-link-container');
+    const emailLogLinkContainer = document.getElementById('email-log-link-container');
     
     if (state.user) {
         document.body.classList.add('logged-in');
         
         if (state.user.role === 'ADMIN') {
-            adminLinkContainer.innerHTML = `<li><a href="/admin/users" onclick="route(event)" class="nav-btn">회원 관리</a></li>`;
+            adminLinkContainer.innerHTML = '<a href="/admin/users" onclick="route(event)" class="nav-btn">회원 관리</a>';
+            emailLogLinkContainer.innerHTML = state.user.department === 'DEV'
+                ? '<a href="/admin/email-logs" onclick="route(event)" class="nav-btn">Email 전송로그</a>'
+                : '';
         } else {
             adminLinkContainer.innerHTML = '';
+            emailLogLinkContainer.innerHTML = '';
         }
         
         authLink.innerHTML = `
@@ -120,6 +125,7 @@ function updateNav() {
     } else {
         document.body.classList.remove('logged-in');
         adminLinkContainer.innerHTML = '';
+        emailLogLinkContainer.innerHTML = '';
         authLink.innerHTML = `<a href="/login" onclick="route(event)" class="nav-btn login-btn">로그인</a>`;
     }
 }
@@ -164,8 +170,23 @@ async function navigate(path, pushState = true) {
             return;
         }
 
-        if (pathname === '/admin/users' && state.user?.role !== 'ADMIN') {
+        if (pathname.startsWith('/admin/') && state.user?.role !== 'ADMIN') {
             utils.showAlert('관리자 권한이 필요합니다.', 'error', '접근 제한');
+            await navigate('/');
+            return;
+        }
+        if (
+            pathname === '/admin/email-logs'
+            && !(
+                state.user?.role === 'ADMIN'
+                && state.user?.department === 'DEV'
+            )
+        ) {
+            utils.showAlert(
+                '개발팀 관리자만 접근할 수 있습니다.',
+                'error',
+                '접근 제한'
+            );
             await navigate('/');
             return;
         }
@@ -203,6 +224,8 @@ async function navigate(path, pushState = true) {
             pages.renderMyPage();
         } else if (pathname === '/admin/users') {
             await pages.renderAdminUsers(searchParams);
+        } else if (pathname === '/admin/email-logs') {
+            await pages.renderAdminEmailLogs(searchParams);
         } else if (pathname.startsWith('/patients/')) {
             const patientId = pathname.split('/')[2];
             await pages.renderPatientDetail(patientId);
