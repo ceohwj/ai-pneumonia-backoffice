@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ModelKey(str, Enum):
     MODEL_1 = "model_1"
+    MODEL_3 = "model_3"
 
 
 class AIAnalysisData(BaseModel):

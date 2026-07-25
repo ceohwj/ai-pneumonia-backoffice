@@ -2,6 +2,7 @@ from functools import lru_cache
 
 from worker.predictors.base import PneumoniaPredictor
 from worker.predictors.model_1 import Model1Predictor
+from worker.predictors.model_3 import Model3Predictor
 
 
 class UnsupportedModelError(ValueError):
@@ -10,6 +11,7 @@ class UnsupportedModelError(ValueError):
 
 PREDICTOR_CLASSES = {
     Model1Predictor.model_key: Model1Predictor,
+    Model3Predictor.model_key: Model3Predictor,
 }
 
 

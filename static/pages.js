@@ -682,7 +682,7 @@ const pages = {
             return;
         }
 
-        if (selectedModel !== 'model_1') {
+        if (!['model_1', 'model_3'].includes(selectedModel)) {
             window.alert('지원하지 않는 모델입니다.');
             return;
         }

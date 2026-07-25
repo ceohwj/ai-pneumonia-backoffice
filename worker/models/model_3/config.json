@@ -1,0 +1,12 @@
+{
+    "best_public_score": 0.9551282051,
+    "threshold": 0.42,
+    "models": {
+        "resnet_tta_weight_inside_2model": 0.72,
+        "simplecnn_weight_inside_2model": 0.28,
+        "densenet_weight": 0.1,
+        "previous_2model_weight": 0.9
+    },
+    "formula": "final_probs = 0.90 * (0.72 * resnet_tta_probs + 0.28 * simplecnn_test_probs) + 0.10 * densenet_tta_probs",
+    "submission_file": "submission_3model_densenet010.csv"
+}
