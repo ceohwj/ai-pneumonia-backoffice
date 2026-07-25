@@ -23,7 +23,6 @@ HEATMAP_MODEL_NAME = "model_3_resnet18_gradcam"
 
 
 class SimpleChestCNN(nn.Module):
-    
     def __init__(self, num_classes: int = 2) -> None:
         super().__init__()
 
@@ -150,7 +149,7 @@ def load_checkpoint(
 
 """ResNet18, SimpleCNN, DenseNet121 3모델 앙상블."""
 
-class Model3Ensemble: 
+class Model3Ensemble:
     def __init__(
         self,
         device: torch.device | None = None,
