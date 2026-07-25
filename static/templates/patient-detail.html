@@ -46,6 +46,10 @@
                 <label for="update-phone">전화번호</label>
                 <input type="tel" id="update-phone" required>
             </div>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <label for="update-patient-email">이메일</label>
+                <input type="email" id="update-patient-email" placeholder="AI 예측 결과 수신 이메일">
+            </div>
             <div style="display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end;">
                 <button type="button" class="secondary" onclick="pages.closeUpdateModal()">취소</button>
                 <button type="submit">수정 완료</button>
@@ -58,11 +62,11 @@
 <div id="delete-modal" class="modal">
     <div class="modal-content">
         <h3 style="color: var(--danger-color);">환자 정보 삭제</h3>
-        <p>환자를 삭제하면 해당 환자의 <strong>모든 진료 기록 및 AI 분석 데이터가 영구적으로 삭제</strong>됩니다.</p>
+        <p>환자를 삭제하면 해당 환자의 <strong>모든 진료 기록, X-Ray 이미지 및 AI 분석 히트맵이 함께 영구 삭제</strong>됩니다.</p>
         <p>정말로 삭제하시겠습니까?</p>
         <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem; justify-content: flex-end;">
             <button class="secondary" onclick="pages.closeDeleteModal()">취소</button>
-            <button style="background-color: var(--danger-color);" onclick="pages.handlePatientDelete()">확인했습니다.</button>
+            <button style="background-color: var(--danger-color);" onclick="pages.handlePatientDelete()">확인했습니다</button>
         </div>
     </div>
 </div>

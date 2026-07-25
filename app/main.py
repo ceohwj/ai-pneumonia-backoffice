@@ -15,6 +15,7 @@ from app.apis.patient_apis import router as patient_router
 from app.apis.record_api import router as record_router
 from app.apis.prediction_apis import router as prediction_router
 from app.apis.analysis_apis import router as analysis_router
+from app.apis.email_apis import router as email_router
 
 # API 성능 측정
 from app.core.performance import log_api_performance
@@ -48,6 +49,7 @@ app.include_router(patient_router)
 app.include_router(record_router)
 app.include_router(prediction_router)
 app.include_router(analysis_router)
+app.include_router(email_router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -81,6 +83,7 @@ async def catch_all(path: str):
         or path.startswith("record_api")
         or path.startswith("analysis_api")
         or path.startswith("prediction_api")
+        or path.startswith("email_api")
         or path.startswith("static/")
         or path.startswith("media/")
     ):
@@ -88,4 +91,3 @@ async def catch_all(path: str):
 
         raise HTTPException(status_code=404)
     return FileResponse(BASE_DIR / "static" / "index.html")
-

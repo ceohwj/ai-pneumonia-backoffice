@@ -23,7 +23,10 @@ class XrayImages(Base, TimestampMixin):
     )
     record_id: Mapped[int] = mapped_column(
         BigInteger,
-        ForeignKey("medical_records.id"),
+        ForeignKey(
+            "medical_records.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         index=True
     )

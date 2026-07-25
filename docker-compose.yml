@@ -9,6 +9,8 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       TZ: Asia/Seoul
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
     command:
       [
         "uvicorn",
@@ -36,12 +38,55 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      TZ: Asia/Seoul
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    command:
+      [
+        "celery",
+        "-A",
+        "app.celery_worker.celery_app",
+        "worker",
+        "--loglevel=INFO",
+        "--queues=email_queue",
+        "--concurrency=1",
+      ]
+    volumes:
+      - .:/app
+      - media_volume:/app/media
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.celery_worker.celery_app inspect ping -d celery@$$HOSTNAME --timeout=5 | grep -q pong",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   mysql:
     image: mysql:8.0
     command: ["--default-time-zone=+09:00"]
     volumes:
       - mysql_volume:/var/lib/mysql
+      - ./mysql/conf.d/charset.cnf:/etc/mysql/conf.d/charset.cnf:ro
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
@@ -58,7 +103,21 @@ services:
       timeout: 20s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_volume:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 
 volumes:
   mysql_volume:
   media_volume:
+  redis_volume:

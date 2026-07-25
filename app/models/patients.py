@@ -45,6 +45,11 @@ class Patient(Base):
         nullable=False,
         comment="환자 연락처, 국내 전화번호로 한정",
     )
+    email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="AI 예측 결과 수신 이메일",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

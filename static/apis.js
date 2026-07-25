@@ -318,6 +318,29 @@ const apis = {
         );
     },
 
+    async createAnalysisEmailJob(recordId) {
+        return await this.request(
+            `/email_api/v1/medical-records/${recordId}/email-jobs`,
+            { method: 'POST' },
+            true
+        );
+    },
+
+    async getEmailJob(emailJobId) {
+        return await this.request(
+            `/email_api/v1/email-jobs/${emailJobId}`,
+            {},
+            true
+        );
+    },
+
+    async adminGetEmailJobs(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        return await this.request(
+            `/email_api/v1/admin/email-jobs${query ? `?${query}` : ''}`
+        );
+    },
+
     // --- Admin ---
 
     /**

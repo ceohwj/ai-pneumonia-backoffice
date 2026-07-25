@@ -107,11 +107,12 @@ const pages = {
         
         // 환자 정보 표시
         document.getElementById('patient-name').innerText = `${patient.name} (${patient.gender === 'male' ? '남성' : '여성'})`;
-        document.getElementById('patient-info').innerText = `나이: ${patient.age}세 | 연락처: ${utils.formatPhoneNumber(patient.phone_number)}`;
+        document.getElementById('patient-info').innerText = `나이: ${patient.age}세 | 연락처: ${utils.formatPhoneNumber(patient.phone_number)} | 이메일: ${patient.email || '미등록'}`;
         
         // 수정 폼 초기값 설정
         document.getElementById('update-name').value = patient.name;
         document.getElementById('update-phone').value = utils.formatPhoneNumber(patient.phone_number);
+        document.getElementById('update-patient-email').value = patient.email || '';
         
         const updatePhoneInput = document.getElementById('update-phone');
         if (updatePhoneInput) {
@@ -195,6 +196,9 @@ const pages = {
             event.preventDefault();
             pages.handlePredict(recordId);
         });
+        document.getElementById('email-send-btn').onclick = () => {
+            pages.handleSendAnalysisEmail(recordId);
+        };
         document.getElementById('refresh-analysis-btn').onclick = () => this.renderRecordDetail(recordId);
         document.getElementById('back-to-patient-btn').onclick = () => navigate(`/patients/${record.patient_id}`);
         
@@ -328,6 +332,63 @@ const pages = {
         `).join('');
     },
 
+    async renderAdminEmailLogs(params = {}) {
+        const jobs = await apis.adminGetEmailJobs(params);
+        const html = await utils.loadTemplate('admin-email-logs');
+        if (state.currentPage !== '/admin/email-logs') return;
+
+        document.getElementById('app').innerHTML = html;
+        const queryInput = document.getElementById('email-log-query');
+        const statusSelect = document.getElementById('email-log-status');
+        if (queryInput && params.query) queryInput.value = params.query;
+        if (statusSelect && params.status) statusSelect.value = params.status;
+
+        const escapeHtml = (value) => {
+            const element = document.createElement('span');
+            element.textContent = value ?? '';
+            return element.innerHTML;
+        };
+        const formatDate = (value) => value
+            ? new Date(value).toLocaleString()
+            : '-';
+        const statusNames = {
+            PENDING: '대기',
+            STARTED: '전송 중',
+            SUCCESS: '성공',
+            RETRY: '재시도',
+            FAILURE: '실패'
+        };
+        const statusClasses = {
+            PENDING: 'pending',
+            STARTED: 'running',
+            SUCCESS: 'success',
+            RETRY: 'pending',
+            FAILURE: 'error'
+        };
+
+        const listBody = document.getElementById('email-log-list');
+        if (jobs.length === 0) {
+            listBody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:2rem;">전송 로그가 없습니다.</td></tr>';
+            return;
+        }
+
+        listBody.innerHTML = jobs.map(job => `
+            <tr>
+                <td>${job.id}</td>
+                <td>${job.record_id}</td>
+                <td>${job.requested_by ?? '-'}</td>
+                <td>${escapeHtml(job.recipient_email)}</td>
+                <td class="email-log-subject">${escapeHtml(job.subject)}</td>
+                <td class="email-log-status"><span class="status-badge ${statusClasses[job.status] || ''}">${statusNames[job.status] || job.status}</span></td>
+                <td>${job.retry_count}</td>
+                <td>${formatDate(job.created_at)}</td>
+                <td>${formatDate(job.completed_at)}</td>
+                <td class="email-log-message">${escapeHtml(job.result_message || '-')}</td>
+                <td class="email-log-message error-text">${escapeHtml(job.error_message || '-')}</td>
+            </tr>
+        `).join('');
+    },
+
     // --- Event Handlers ---
 
     handleAdminSearch() {
@@ -345,6 +406,20 @@ const pages = {
 
     resetAdminSearch() {
         navigate('/admin/users');
+    },
+
+    handleEmailLogSearch() {
+        const query = document.getElementById('email-log-query').value;
+        const status = document.getElementById('email-log-status').value;
+        const params = new URLSearchParams();
+        if (query) params.set('query', query);
+        if (status) params.set('status', status);
+        const queryString = params.toString();
+        navigate('/admin/email-logs' + (queryString ? `?${queryString}` : ''));
+    },
+
+    resetEmailLogSearch() {
+        navigate('/admin/email-logs');
     },
 
     async handleRoleUpdate(userId, newRole) {
@@ -450,7 +525,8 @@ const pages = {
             name: document.getElementById('name').value,
             age: parseInt(document.getElementById('age').value),
             gender: document.getElementById('gender').value,
-            phone_number: document.getElementById('phone_number').value.replace(/[^\d]/g, '')
+            phone_number: document.getElementById('phone_number').value.replace(/[^\d]/g, ''),
+            email: document.getElementById('patient-email').value || null
         };
         
         try {
@@ -508,6 +584,7 @@ const pages = {
             document.getElementById('update-name').value = patient.name;
             document.getElementById('update-phone').value =
                 utils.formatPhoneNumber(patient.phone_number);
+            document.getElementById('update-patient-email').value = patient.email || '';
 
             document.getElementById('update-modal').classList.add('show');
         } catch (err) {
@@ -524,7 +601,8 @@ const pages = {
         const patientId = state.currentPatientId;
         const updateData = {
             name: document.getElementById('update-name').value,
-            phone_number: document.getElementById('update-phone').value.replace(/[^\d]/g, '')
+            phone_number: document.getElementById('update-phone').value.replace(/[^\d]/g, ''),
+            email: document.getElementById('update-patient-email').value || null
         };
 
         try {
@@ -554,6 +632,45 @@ const pages = {
             navigate('/patients');
         } catch (err) {
             utils.showAlert(`환자 삭제 실패: ${err.message}`, 'error');
+        }
+    },
+
+    async handleSendAnalysisEmail(recordId) {
+        const button = document.getElementById('email-send-btn');
+        if (button) {
+            button.disabled = true;
+            button.textContent = '이메일 작업 등록 중...';
+        }
+
+        try {
+            let job = await apis.createAnalysisEmailJob(recordId);
+            const statusLabels = {
+                PENDING: '전송 대기 중...',
+                STARTED: '이메일 전송 중...',
+                RETRY: '전송 재시도 대기 중...'
+            };
+
+            for (let attempt = 0; attempt < 30; attempt += 1) {
+                if (['SUCCESS', 'FAILURE'].includes(job.status)) break;
+                if (button) button.textContent = statusLabels[job.status] || '상태 확인 중...';
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                job = await apis.getEmailJob(job.id);
+            }
+
+            if (job.status === 'SUCCESS') {
+                utils.showAlert(job.result_message || '이메일 전송이 완료되었습니다.', 'success');
+            } else if (job.status === 'FAILURE') {
+                throw new Error(job.error_message || '이메일 전송에 실패했습니다.');
+            } else {
+                utils.showAlert('이메일 작업이 백그라운드에서 계속 처리 중입니다.', 'success');
+            }
+        } catch (err) {
+            utils.showAlert(`이메일 전송 실패: ${err.message}`, 'error');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.textContent = '이메일 보내기';
+            }
         }
     },
 

@@ -406,6 +406,92 @@ footer {
     color: var(--danger-color);
 }
 
+.status-badge.pending {
+    background-color: #fff3cd;
+    color: #8a6116;
+}
+
+.status-badge.running {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.admin-page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.admin-page-heading h2,
+.admin-page-heading p {
+    margin: 0;
+}
+
+.admin-eyebrow {
+    color: var(--primary-color);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+}
+
+.email-log-filters {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.email-log-filters input {
+    flex: 1;
+    min-width: 260px;
+}
+
+.email-log-filters select {
+    width: 150px;
+}
+
+.email-log-table-wrap {
+    overflow-x: auto;
+}
+
+.email-log-table {
+    min-width: 1500px;
+}
+
+.email-log-table th {
+    white-space: nowrap;
+}
+
+.email-log-subject {
+    min-width: 230px;
+}
+
+.email-log-status {
+    min-width: 36px;
+    white-space: nowrap;
+}
+
+.email-log-message {
+    max-width: 280px;
+    overflow-wrap: anywhere;
+}
+
+.error-text {
+    color: var(--danger-color);
+}
+
+@media (max-width: 720px) {
+    .admin-page-heading {
+        flex-direction: column;
+    }
+
+    .email-log-filters > * {
+        width: 100% !important;
+    }
+}
+
 .heatmap-result {
     display: flex;
     flex-direction: column;
