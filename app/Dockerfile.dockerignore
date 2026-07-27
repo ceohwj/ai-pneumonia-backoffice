@@ -1,0 +1,10 @@
+**
+!app/
+!app/**
+!static/
+!static/**
+!alembic/
+!alembic/**
+!alembic.ini
+!pyproject.toml
+!uv.lock

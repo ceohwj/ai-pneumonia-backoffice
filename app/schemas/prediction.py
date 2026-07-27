@@ -14,6 +14,10 @@ class AIAnalysisData(BaseModel):
     #DB에 저장된 결과 목록 반환
     id: int = Field(..., description="AI 분석 결과 ID")
     record_id: int = Field(..., description="진료기록 ID")
+    xray_image_id: int | None = Field(
+        default=None,
+        description="예측에 사용한 X-Ray 이미지 ID",
+    )
     is_pneumonia: bool = Field(..., description="폐렴 판정 여부")
     confidence: float = Field(
         ...,

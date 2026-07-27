@@ -19,7 +19,7 @@ celery_app.conf.update(
     timezone="Asia/Seoul",
     enable_utc=False,
     task_routes={
-        "app.tasks.send_analysis_email": {
+        "app.tasks.send_email": {
             "queue": "email_queue",
         },
     },

@@ -11,6 +11,7 @@ services:
       TZ: Asia/Seoul
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/2
     command:
       [
         "uvicorn",
@@ -22,13 +23,14 @@ services:
         "--reload",
         "--reload-dir",
         "/app/app",
-        "--reload-dir",
-        "/app/worker",
       ]
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
+      - ./app:/app/app
+      - ./static:/app/static
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini:ro
       - media_volume:/app/media
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/healthcheck || exit 1"]
@@ -64,7 +66,7 @@ services:
         "--concurrency=1",
       ]
     volumes:
-      - .:/app
+      - ./app:/app/app
       - media_volume:/app/media
     healthcheck:
       test:
@@ -78,6 +80,36 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  ai-worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    environment:
+      TZ: Asia/Seoul
+      REDIS_URL: redis://redis:6379/2
+      MEDIA_ROOT: /app/media
+      PREDICTION_TASK_STREAM: prediction:tasks
+      PREDICTION_CONSUMER_GROUP: prediction-workers
+      PREDICTION_CLAIM_IDLE_MS: 300000
+      PREDICTION_RESULT_TTL_SECONDS: 300
+    volumes:
+      - ./worker:/app/worker
+      - media_volume:/app/media
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "from worker.redis_client import redis_client; assert redis_client.ping()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
       redis:
         condition: service_healthy
 

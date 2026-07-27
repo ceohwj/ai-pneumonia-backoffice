@@ -14,7 +14,7 @@ from app.models.email_jobs import EmailJob, EmailJobStatus
 from app.models.medical_records import MedicalRecord
 from app.models.users import DepartmentEnum, RoleEnum, User
 from app.schemas.email import EmailJobResponse
-from app.tasks import send_analysis_email
+from app.tasks import send_email
 
 router = APIRouter(
     prefix="/email_api",
@@ -91,7 +91,7 @@ async def create_email_job(
     try:
         await db.commit()
         await db.refresh(email_job)
-        send_analysis_email.apply_async(
+        send_email.apply_async(
             args=(email_job.id,),
             task_id=task_id,
             queue="email_queue",

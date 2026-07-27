@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -19,8 +20,17 @@ from app.apis.email_apis import router as email_router
 
 # API 성능 측정
 from app.core.performance import log_api_performance
+from app.core.redis_client import close_redis_client, redis_client
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await redis_client.ping()
+    yield
+    await close_redis_client()
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.middleware("http")(log_api_performance) #미들웨어 등록 및 API 처리 시간 측정
 

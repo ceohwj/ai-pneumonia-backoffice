@@ -181,13 +181,13 @@ def _deliver_email(
 
 @celery_app.task(
     bind=True,
-    name="app.tasks.send_analysis_email",
+    name="app.tasks.send_email",
     max_retries=3,
     default_retry_delay=60,
     soft_time_limit=30,
     time_limit=40,
 )
-def send_analysis_email(self, email_job_id: int) -> dict[str, str | int]:
+def send_email(self, email_job_id: int) -> dict[str, str | int]:
     now = datetime.now()
     _update_job(
         email_job_id,

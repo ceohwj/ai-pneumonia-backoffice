@@ -16,6 +16,7 @@ from app.core.db.models import TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.medical_records import MedicalRecord
+    from app.models.xray_images import XrayImages
 
 
 class AIAnalysisResult(Base, TimestampMixin):
@@ -23,9 +24,9 @@ class AIAnalysisResult(Base, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "record_id",
+            "xray_image_id",
             "ai_model",
-            name="uq_ai_analysis_record_model",
+            name="uq_ai_analysis_xray_model",
         ),
         {"comment": "AI 분석 결과 저장 테이블"},
     )
@@ -44,7 +45,18 @@ class AIAnalysisResult(Base, TimestampMixin):
             ondelete="CASCADE",
         ),
         nullable=False,
+        index=True,
         comment="진료 기록 ID",
+    )
+    xray_image_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey(
+            "xray_images.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+        comment="예측에 사용한 X-Ray 이미지 ID",
     )
     is_pneumonia: Mapped[bool] = mapped_column(
         Boolean,
@@ -79,3 +91,5 @@ class AIAnalysisResult(Base, TimestampMixin):
     medical_record: Mapped["MedicalRecord"] = relationship(
         back_populates="ai_analysis_results",
     )
+
+    xray_image: Mapped["XrayImages | None"] = relationship()
