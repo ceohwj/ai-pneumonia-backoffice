@@ -16,7 +16,7 @@ RUN apt-get update \
 
 # 의존성 파일을 먼저 복사해 소스 변경 시에도 Docker layer cache를 활용한다.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project --extra app
 
 
 FROM python:3.13-slim AS runtime
@@ -28,7 +28,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y curl libgomp1 \
+    && apt-get install --no-install-recommends -y curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system app \
     && useradd --system --gid app --home-dir /app app
@@ -36,7 +36,6 @@ RUN apt-get update \
 COPY --from=builder /opt/venv /opt/venv
 COPY app /app/app
 COPY static /app/static
-COPY worker /app/worker
 COPY alembic /app/alembic
 COPY alembic.ini pyproject.toml uv.lock /app/
 

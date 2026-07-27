@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import Annotated
 
@@ -16,8 +15,10 @@ from app.schemas.prediction import (
 from app.services.prediction_service import (
     MedicalRecordNotFoundError,
     PredictionFailedError,
+    PredictionQueueUnavailableError,
+    PredictionResultTimeoutError,
     XrayImageNotFoundError,
-    get_or_create_prediction,
+    enqueue_prediction_and_wait,
     get_prediction_results,
 )
 
@@ -74,12 +75,12 @@ async def predict_pneumonia(
     """
 
     try:
-        async with asyncio.timeout(PREDICTION_TIMEOUT_SECONDS):
-            analysis, cached = await get_or_create_prediction(
-                db=db,
-                record_id=record_id,
-                model_key=model_key.value,
-            )
+        analysis, cached = await enqueue_prediction_and_wait(
+            db=db,
+            record_id=record_id,
+            model_key=model_key.value,
+            timeout_seconds=PREDICTION_TIMEOUT_SECONDS,
+        )
 
     except MedicalRecordNotFoundError as exc:
         raise HTTPException(
@@ -107,7 +108,18 @@ async def predict_pneumonia(
             ),
         ) from exc
 
-    except TimeoutError as exc:
+    except PredictionQueueUnavailableError as exc:
+        logger.exception(
+            "AI 예측 Redis 작업 큐 연결 실패: record_id=%s, model_key=%s",
+            record_id,
+            model_key.value,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI 예측 작업 큐를 사용할 수 없습니다.",
+        ) from exc
+
+    except PredictionResultTimeoutError as exc:
         logger.warning(
             "AI 폐렴 예측 제한 시간 초과: record_id=%s, model_key=%s",
             record_id,

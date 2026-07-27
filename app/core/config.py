@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/1"
     CELERY_RESULT_EXPIRES: int = 3600
+    REDIS_URL: str = "redis://localhost:6379/2"
+    PREDICTION_TASK_STREAM: str = "prediction:tasks"
+    PREDICTION_CONSUMER_GROUP: str = "prediction-workers"
+    PREDICTION_STREAM_MAXLEN: int = 10000
+    PREDICTION_LOCK_TTL_SECONDS: int = 900
+    PREDICTION_RESULT_TTL_SECONDS: int = 300
 
     EMAIL_DELIVERY_MODE: str = "console"
     SMTP_HOST: str | None = None

@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>폐렴 예측 Event-Driven Architecture</title>
+  <style>
+    :root {
+      --ink: #17312d;
+      --muted: #61716d;
+      --paper: #f6f2e8;
+      --surface: rgba(255, 255, 255, 0.82);
+      --line: #cad5cf;
+      --teal: #087f6f;
+      --teal-soft: #d8eee8;
+      --orange: #eb6a37;
+      --orange-soft: #fbe4d8;
+      --navy: #244c5a;
+      --yellow: #f5c453;
+      --shadow: 0 18px 50px rgba(30, 66, 57, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(245, 196, 83, 0.28), transparent 26rem),
+        radial-gradient(circle at 96% 18%, rgba(8, 127, 111, 0.15), transparent 30rem),
+        var(--paper);
+      font-family: "Avenir Next", "Noto Sans KR", sans-serif;
+      line-height: 1.65;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      opacity: 0.22;
+      background-image: linear-gradient(rgba(23, 49, 45, 0.08) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(23, 49, 45, 0.08) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 75%);
+    }
+
+    .page {
+      width: min(1240px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 48px 0 80px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(34px, 6vw, 72px);
+      border: 1px solid rgba(8, 127, 111, 0.22);
+      border-radius: 30px;
+      background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(216,238,232,.82));
+      box-shadow: var(--shadow);
+      animation: rise .65s ease-out both;
+    }
+
+    .hero::after {
+      content: "EDA";
+      position: absolute;
+      right: -24px;
+      bottom: -84px;
+      color: rgba(8, 127, 111, 0.08);
+      font-size: clamp(9rem, 21vw, 18rem);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.08em;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--orange);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin-bottom: 20px;
+      font-size: clamp(2.25rem, 5.8vw, 5.2rem);
+      line-height: 1.02;
+      letter-spacing: -0.055em;
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: clamp(1rem, 1.8vw, 1.18rem);
+    }
+
+    .badges {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 28px;
+    }
+
+    .badge {
+      padding: 7px 12px;
+      border: 1px solid rgba(8, 127, 111, 0.18);
+      border-radius: 999px;
+      background: rgba(255,255,255,.72);
+      color: var(--teal);
+      font-size: .82rem;
+      font-weight: 750;
+    }
+
+    section { margin-top: 58px; }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      margin-bottom: 0;
+      font-size: clamp(1.65rem, 3vw, 2.45rem);
+      letter-spacing: -0.04em;
+    }
+
+    .section-note {
+      max-width: 500px;
+      margin-bottom: 3px;
+      color: var(--muted);
+      text-align: right;
+      font-size: .92rem;
+    }
+
+    .panel {
+      border: 1px solid rgba(23, 49, 45, .12);
+      border-radius: 24px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .architecture { padding: 28px; }
+
+    .arch-grid {
+      display: grid;
+      grid-template-columns: minmax(150px, .85fr) 42px minmax(190px, 1fr) 42px minmax(220px, 1.15fr) 42px minmax(220px, 1.1fr);
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .node {
+      min-height: 190px;
+      padding: 22px;
+      border-radius: 20px;
+      border: 1px solid rgba(23,49,45,.12);
+      background: #fff;
+    }
+
+    .node.api { background: linear-gradient(145deg, #fff, var(--teal-soft)); }
+    .node.redis { background: linear-gradient(145deg, #fff, var(--orange-soft)); }
+    .node.worker { background: linear-gradient(145deg, #fff, #dce8ec); }
+
+    .node-label {
+      display: inline-block;
+      margin-bottom: 13px;
+      padding: 4px 9px;
+      border-radius: 8px;
+      background: var(--ink);
+      color: #fff;
+      font-size: .68rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+    }
+
+    .node h3 { margin-bottom: 9px; font-size: 1.22rem; }
+    .node p { margin-bottom: 0; color: var(--muted); font-size: .88rem; }
+
+    .mini-list {
+      display: grid;
+      gap: 7px;
+      margin-top: 14px;
+    }
+
+    .mini-list span {
+      display: block;
+      padding: 7px 9px;
+      border-radius: 9px;
+      background: rgba(255,255,255,.72);
+      color: var(--ink);
+      font-size: .78rem;
+      font-weight: 700;
+    }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      color: var(--teal);
+      font-size: 1.75rem;
+      font-weight: 800;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+
+    .return-rail {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px dashed var(--line);
+    }
+
+    .rail-item {
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.72);
+      color: var(--muted);
+      font-size: .83rem;
+    }
+
+    .rail-item strong { display: block; color: var(--ink); }
+
+    .decision-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .decision {
+      position: relative;
+      overflow: hidden;
+      padding: 27px;
+    }
+
+    .decision::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 6px;
+      background: var(--teal);
+    }
+
+    .decision.miss::before { background: var(--orange); }
+    .decision h3 { margin-bottom: 9px; }
+    .decision p { margin-bottom: 0; color: var(--muted); }
+
+    .sequence {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .step {
+      position: relative;
+      min-height: 190px;
+      padding: 22px 20px;
+      overflow: hidden;
+    }
+
+    .step-number {
+      color: var(--orange);
+      font-family: Georgia, serif;
+      font-size: 2.3rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .step h3 { margin: 13px 0 8px; font-size: 1rem; }
+    .step p { margin-bottom: 0; color: var(--muted); font-size: .84rem; }
+
+    .step code, td code, .source code {
+      border-radius: 6px;
+      background: #e7efeb;
+      color: #0b6257;
+      padding: 2px 5px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .78em;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 18px;
+    }
+
+    .table-wrap, .resilience { padding: 26px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 13px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: .84rem; }
+    th { color: var(--muted); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+
+    .resilience ul { margin: 13px 0 0; padding-left: 20px; color: var(--muted); }
+    .resilience li + li { margin-top: 8px; }
+
+    .sources {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .source {
+      display: block;
+      min-height: 128px;
+      padding: 20px;
+      border: 1px solid rgba(23,49,45,.12);
+      border-radius: 16px;
+      background: rgba(255,255,255,.76);
+      color: inherit;
+      text-decoration: none;
+      transition: transform .2s ease, border-color .2s ease;
+    }
+
+    .source:hover { transform: translateY(-4px); border-color: var(--teal); }
+    .source strong { display: block; margin-bottom: 7px; }
+    .source span { color: var(--muted); font-size: .82rem; }
+
+    .footer {
+      margin-top: 58px;
+      padding: 24px 0 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: translateX(0); opacity: .55; }
+      50% { transform: translateX(4px); opacity: 1; }
+    }
+
+    @media (max-width: 980px) {
+      .arch-grid { grid-template-columns: 1fr; }
+      .arrow {
+        min-height: 30px;
+        animation: none;
+        transform: rotate(90deg);
+      }
+      .return-rail, .sequence { grid-template-columns: 1fr 1fr; }
+      .sources { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      .page { width: min(100% - 22px, 1240px); padding-top: 18px; }
+      .hero { border-radius: 22px; padding: 29px 23px; }
+      .section-head { display: block; }
+      .section-note { margin-top: 8px; text-align: left; }
+      .decision-grid, .detail-grid, .sequence, .return-rail, .sources { grid-template-columns: 1fr; }
+      .architecture { padding: 16px; }
+      section { margin-top: 42px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">AI Health / Event-Driven Architecture</p>
+      <h1>폐렴 예측 프로세스 구조</h1>
+      <p class="hero-copy">
+        FastAPI는 요청과 DB 저장을, AI worker는 모델 추론을 담당합니다.
+        Redis Streams가 작업을 분배하고 Pub/Sub가 결과를 돌려주며,
+        동일 X-Ray와 동일 모델 요청은 기존 DB 결과를 즉시 재사용합니다.
+      </p>
+      <div class="badges">
+        <span class="badge">Redis Streams</span>
+        <span class="badge">Consumer Group</span>
+        <span class="badge">Pub/Sub</span>
+        <span class="badge">Distributed Lock</span>
+        <span class="badge">XAUTOCLAIM Recovery</span>
+      </div>
+    </header>
+
+    <section>
+      <div class="section-head">
+        <h2>서비스 아키텍처</h2>
+        <p class="section-note">FastAPI 이미지에는 AI 의존성이 없고, AI worker만 CPU PyTorch와 모델 파일을 사용합니다.</p>
+      </div>
+      <div class="panel architecture">
+        <div class="arch-grid">
+          <article class="node">
+            <span class="node-label">CLIENT</span>
+            <h3>Web Browser</h3>
+            <p>진료기록과 모델을 선택해 폐렴 예측 API를 호출합니다.</p>
+            <div class="mini-list"><span>POST /predict</span><span>HTTP 연결 유지</span></div>
+          </article>
+          <div class="arrow" aria-hidden="true">→</div>
+          <article class="node api">
+            <span class="node-label">PRODUCER</span>
+            <h3>FastAPI</h3>
+            <p>캐시 확인, 작업 등록, 결과 구독, DB 저장과 API 응답을 담당합니다.</p>
+            <div class="mini-list"><span>async Redis client</span><span>SQLAlchemy AsyncSession</span></div>
+          </article>
+          <div class="arrow" aria-hidden="true">→</div>
+          <article class="node redis">
+            <span class="node-label">EVENT BUS</span>
+            <h3>Redis DB 2</h3>
+            <p>Streams 작업 큐와 Pub/Sub 결과 채널, 분산 락을 함께 관리합니다.</p>
+            <div class="mini-list"><span>prediction:tasks</span><span>prediction:result:*</span><span>prediction:lock:*</span></div>
+          </article>
+          <div class="arrow" aria-hidden="true">→</div>
+          <article class="node worker">
+            <span class="node-label">CONSUMERS</span>
+            <h3>AI Worker × N</h3>
+            <p>consumer group에서 작업을 하나씩 가져와 모델 추론과 Heatmap 생성을 수행합니다.</p>
+            <div class="mini-list"><span>worker-1</span><span>worker-2</span><span>scale-out ready</span></div>
+          </article>
+        </div>
+        <div class="return-rail">
+          <div class="rail-item"><strong>Worker → Redis</strong>추론 성공·실패 결과를 cache + Pub/Sub로 발행</div>
+          <div class="rail-item"><strong>Redis → FastAPI</strong>구독 중인 결과 채널로 JSON 이벤트 전달</div>
+          <div class="rail-item"><strong>FastAPI → MySQL</strong>결과 저장 후 분산 락 해제, 최종 HTTP 응답</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>캐시 분기</h2>
+        <p class="section-note">캐시 키는 최신 X-Ray ID와 실제 모델 식별자를 기준으로 합니다.</p>
+      </div>
+      <div class="decision-grid">
+        <article class="panel decision">
+          <p class="eyebrow">Cache Hit</p>
+          <h3>기존 DB 결과 즉시 반환</h3>
+          <p><code>xray_image_id + ai_model</code> 결과와 Heatmap 파일이 존재하면 Redis 작업을 생성하지 않고 <code>cached=true</code>로 응답합니다.</p>
+        </article>
+        <article class="panel decision miss">
+          <p class="eyebrow">Cache Miss</p>
+          <h3>Redis Stream 작업 등록</h3>
+          <p>결과 채널을 먼저 구독한 뒤 분산 락을 획득한 요청 하나만 Stream에 작업을 넣습니다. 나머지 동시 요청은 같은 결과를 기다립니다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>처리 순서</h2>
+        <p class="section-note">성공 결과의 DB 저장 책임은 AI worker가 아니라 FastAPI에 있습니다.</p>
+      </div>
+      <div class="sequence">
+        <article class="panel step"><span class="step-number">01</span><h3>요청 검증</h3><p>진료기록과 최신 X-Ray를 조회하고 모델 키를 검증합니다.</p></article>
+        <article class="panel step"><span class="step-number">02</span><h3>DB 캐시 확인</h3><p>동일 이미지·모델의 유효한 분석 결과가 있으면 즉시 반환합니다.</p></article>
+        <article class="panel step"><span class="step-number">03</span><h3>결과 채널 구독</h3><p>빠른 작업 결과를 놓치지 않도록 큐 등록보다 Pub/Sub 구독을 먼저 수행합니다.</p></article>
+        <article class="panel step"><span class="step-number">04</span><h3>락 + XADD</h3><p><code>SET NX EX</code>로 중복 작업을 막고 <code>prediction:tasks</code>에 이벤트를 추가합니다.</p></article>
+        <article class="panel step"><span class="step-number">05</span><h3>XREADGROUP</h3><p>여러 worker 중 하나가 consumer group을 통해 작업을 원자적으로 받습니다.</p></article>
+        <article class="panel step"><span class="step-number">06</span><h3>모델 추론</h3><p>공유 media 볼륨의 X-Ray를 읽고 폐렴 판정, Confidence, Heatmap을 생성합니다.</p></article>
+        <article class="panel step"><span class="step-number">07</span><h3>Publish + ACK</h3><p>결과를 임시 캐시와 채널에 발행한 뒤 작업을 <code>XACK</code>하고 Stream에서 제거합니다.</p></article>
+        <article class="panel step"><span class="step-number">08</span><h3>저장 + 응답</h3><p>FastAPI가 결과를 MySQL에 저장하고 락을 해제한 후 API 응답을 반환합니다.</p></article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>동시성·복구 설계</h2></div>
+      <div class="detail-grid">
+        <div class="panel table-wrap">
+          <table>
+            <thead><tr><th>Redis 구조</th><th>키 / 그룹</th><th>역할</th></tr></thead>
+            <tbody>
+              <tr><td>Stream</td><td><code>prediction:tasks</code></td><td>내구성 있는 예측 작업 큐</td></tr>
+              <tr><td>Consumer Group</td><td><code>prediction-workers</code></td><td>다중 worker 간 작업 1회 분배</td></tr>
+              <tr><td>Pub/Sub</td><td><code>prediction:result:{key}</code></td><td>대기 중인 FastAPI 요청에 결과 전파</td></tr>
+              <tr><td>Result Cache</td><td><code>prediction:result-cache:{key}</code></td><td>구독 순간의 결과 유실 방지</td></tr>
+              <tr><td>Lock</td><td><code>prediction:lock:{key}</code></td><td>동일 이미지·모델 중복 추론 차단</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <aside class="panel resilience">
+          <p class="eyebrow">Failure Strategy</p>
+          <h3>비정상 종료에도 작업 보존</h3>
+          <ul>
+            <li>worker는 결과 발행 전까지 작업을 ACK하지 않습니다.</li>
+            <li>종료된 consumer의 pending 작업은 일정 idle 시간 후 <code>XAUTOCLAIM</code>됩니다.</li>
+            <li>다른 worker가 claim한 작업을 다시 추론하고 결과를 발행합니다.</li>
+            <li>DB 유니크 키가 최종 중복 저장을 한 번 더 방지합니다.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>소스 매핑</h2>
+        <p class="section-note">카드를 누르면 현재 구현 파일을 열 수 있습니다.</p>
+      </div>
+      <div class="sources">
+        <a class="source" href="../app/core/redis_client.py"><strong>FastAPI Redis Client</strong><code>app/core/redis_client.py</code><span>비동기 연결, 채널·락·결과 키</span></a>
+        <a class="source" href="../app/services/prediction_service.py"><strong>Prediction Service</strong><code>app/services/prediction_service.py</code><span>캐시, XADD, Subscribe, DB 저장</span></a>
+        <a class="source" href="../app/apis/prediction_apis.py"><strong>Prediction API</strong><code>app/apis/prediction_apis.py</code><span>권한, 타임아웃, HTTP 오류 변환</span></a>
+        <a class="source" href="../worker/redis_client.py"><strong>Worker Redis Client</strong><code>worker/redis_client.py</code><span>동기 연결과 consumer group</span></a>
+        <a class="source" href="../worker/main.py"><strong>AI Worker</strong><code>worker/main.py</code><span>소비, 추론, Publish, ACK, 복구</span></a>
+        <a class="source" href="../docker-compose.yml"><strong>Docker Services</strong><code>docker-compose.yml</code><span>FastAPI, Redis, MySQL, AI worker × N</span></a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <strong>Runtime verification:</strong> 2 AI workers healthy · Redis pending 0 · 실제 model_3 추론 및 동시 요청 수렴 검증 완료
+    </footer>
+  </main>
+</body>
+</html>
