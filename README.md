@@ -1,334 +1,182 @@
 # AI 폐렴 판독 지원 백오피스
 
-흉부 X-Ray와 AI 모델을 활용해 폐렴 예측을 지원하고, 사용자·환자·진료기록·예측 결과를 한곳에서 관리하는 의료진용 백오피스입니다.
+**개인 X-ray 프로젝트의 최종 앙상블 모델을 환자·진료기록 관리 웹 서비스의 예측 기능으로 연결한 팀 프로젝트입니다.**
 
-> 이 프로젝트의 AI 결과는 의료진의 판단을 돕기 위한 참고 정보이며 실제 진단을 대체하지 않습니다.
+웹 서비스 개발을 배우며 모델 추론뿐 아니라 예측 결과 저장·조회, 사용자·환자 API와 로컬 성능 점검까지 경험을 확장했습니다.
 
-## 프로젝트 소개
-
-의료진이 환자와 진료기록을 관리하면서 X-Ray 기반 폐렴 예측 결과와 Grad-CAM Heatmap을 확인할 수 있도록 구현했습니다. 시간이 오래 걸리는 AI 추론과 이메일 전송은 API 서버에서 분리하고, Redis와 독립 Worker를 이용해 처리합니다.
-
-현재 저장소는 로컬 개발 및 팀 통합 테스트를 위한 Docker Compose 환경을 제공합니다.
+[포트폴리오 상세 사례](https://hyunwoo-jung-portfolio.vercel.app/case-studies/pneumonia-backoffice) · [개인 X-ray 모델 개발 프로젝트](https://github.com/ceohwj/chest-xray-pneumonia-classification-ai) · [팀 원본 저장소](https://github.com/kimeunmi82/Oz_codingSchool)
 
 | 구분 | 내용 |
 | --- | --- |
-| 주요 사용자 | 의료진, 개발실, 연구진, 관리자 |
-| 핵심 기능 | 회원·권한 관리, 환자 관리, 진료기록 및 X-Ray 관리, AI 폐렴 예측, 결과 이메일 전송 |
-| API 서버 | FastAPI, SQLAlchemy AsyncSession |
-| 비동기 처리 | Redis Streams, Redis Pub/Sub, Celery |
-| 데이터 저장 | MySQL, Docker Named Volume |
-| 실행 환경 | Python 3.13, Docker Compose |
+| 프로젝트 | 오즈코딩스쿨 웹 서비스 학습 팀 프로젝트 |
+| 개발 기록 | 2026.07 · 공개 GitHub 기록 기준 |
+| 개인 담당 | X-ray 모델 제공·예측 API·Grad-CAM 연동, X-ray DB 모델, 비밀번호 변경·환자 수정/삭제 API, 로컬 부하 테스트 |
+| 모델 연결 | 개인 프로젝트의 최종 제출 모델 → 서비스의 `model_1` → 진료기록별 예측 결과·Heatmap 저장/조회 |
+| 실행 범위 | Docker Compose 기반 로컬 개발 환경 · AWS는 향후 설계 |
 
-## 주요 화면
+이 저장소는 팀 원본의 포크이며, 아래 개인 기여는 **정현우(`ceohwj`)가 작성·병합한 원본 PR**을 근거로 정리했습니다. 전체 백오피스는 팀 결과물입니다. AI 결과는 학습용 참고 정보이며 실제 진단을 대체하지 않습니다.
 
-| 환자 목록 | AI 예측 결과 |
-| --- | --- |
-| ![환자 목록](./docs/images/7일차_환자목록.png) | ![AI 예측 결과](./docs/images/7일차_AI예측결과.png) |
+## 문제 정의: 모델 출력을 진료기록에 연결하기
 
-더 많은 화면과 연결 API는 [앱 실행 화면 문서](./docs/7일차_앱_실행화면.md)에서 확인할 수 있습니다.
+이미지 한 장의 분류 결과를 계산하는 것과 웹 서비스에서 그 결과를 사용하는 것은 다른 작업입니다. 환자와 진료기록에 X-ray를 연결하고, 예측에 사용한 이미지·모델·결과·Heatmap을 함께 저장해 다시 조회할 수 있어야 했습니다.
 
-## 주요 기능
+이 프로젝트에서는 기존 모델을 서비스에 적용하고, 그 예측 결과가 사용자 화면까지 이어지도록 API와 데이터 구조를 연결했습니다.
 
-### 사용자와 권한
+## 개인 담당 역할과 근거
 
-- 이메일·비밀번호 기반 회원가입 및 로그인
-- JWT Access Token과 HttpOnly Refresh Token을 이용한 인증
-- 내 정보 수정, 비밀번호 변경, 로그아웃, 회원 탈퇴
-- 관리자용 회원 검색·필터링 및 역할 변경
-- `PENDING`, `STAFF`, `ADMIN` 역할과 `MEDICAL`, `DEV`, `RESEARCH` 부서 조합에 따른 접근 제어
+| 영역 | 직접 수행한 작업 | 원본 PR |
+| --- | --- | --- |
+| **X-ray 모델·서비스 연동** | 최종 앙상블 모델 제공, 폐렴 예측 실행과 결과 저장·조회 API, Grad-CAM 생성 및 결과 화면 연동 | [#68](https://github.com/kimeunmi82/Oz_codingSchool/pull/68) |
+| **모델 평가** | 저장된 OOF 혼동행렬로 Recall·Accuracy를 재계산하는 스크립트와 평가 보고서 | [#69](https://github.com/kimeunmi82/Oz_codingSchool/pull/69) |
+| **X-ray 데이터 구조** | 진료기록·업로더 관계, 이미지 URL·촬영 일시·인덱스를 포함한 ORM 모델 정의 | [#17](https://github.com/kimeunmi82/Oz_codingSchool/pull/17) |
+| **환자 관리 API** | 환자 정보 수정·삭제, 관련 데이터·파일 정리와 오류 시 rollback 처리 | [#55](https://github.com/kimeunmi82/Oz_codingSchool/pull/55) |
+| **비밀번호 변경 API** | JWT 인증 사용자 본인의 비밀번호 변경과 Argon2 검증·해싱 처리 | [#34](https://github.com/kimeunmi82/Oz_codingSchool/pull/34) |
+| **API 성능 점검** | 사용자·인증 API 처리 개선, Locust 시나리오 작성과 로컬 부하 테스트 | [#38](https://github.com/kimeunmi82/Oz_codingSchool/pull/38) |
+| 회원 조회 실습 | 전체 회원·특정 회원 조회 API와 미존재 사용자 처리 (`practice_apis.py`) | [#10](https://github.com/kimeunmi82/Oz_codingSchool/pull/10) |
 
-### 환자와 진료기록
+회원 조회 행은 초기 실습 API입니다. 회원가입·로그인·권한 관리·프론트엔드 전체와 아래의 Redis 워커 분리·공통 어댑터·Docker 구성은 팀 전체 구현 범위로 구분합니다.
 
-- 환자 등록, 목록 검색, 성별·나이 필터, 상세 조회, 수정 및 삭제
-- 차트 번호, 증상, 촬영 일시와 흉부 X-Ray를 포함한 진료기록 등록
-- 진료기록 목록·상세 조회 및 X-Ray 미리보기
-- 환자 삭제 시 연결된 기록과 미디어 파일을 함께 정리하는 일관성 처리
+## 핵심 경험: 최종 X-ray 모델을 서비스에 적용
 
-### AI 폐렴 예측
+### 1. 개인 모델을 팀의 예측 모델로 제공
 
-- 진료기록의 최신 X-Ray를 이용한 폐렴 여부 및 신뢰도 예측
-- `model_1`, `model_3` 추론 모델 선택
-- 예측에 활용된 X-Ray, 모델, 생성 시점 및 Grad-CAM Heatmap 저장
-- 기존 결과와 Heatmap이 유효하면 재추론 없이 캐시된 DB 결과 반환
-- 동일 X-Ray·모델 조합의 중복 추론과 중복 저장 방지
+기존 [흉부 X-ray 분류 프로젝트](https://github.com/ceohwj/chest-xray-pneumonia-classification-ai)의 최종 제출에 사용한 앙상블 모델을 제공했습니다([모델 제공 기록](https://github.com/ceohwj/ai-pneumonia-backoffice/commit/bcff9b4edef26cb05318f0fdacbbdfe73eec3e55)). 팀 내 대회 리더보드 성적을 기준으로 본인 모델이 채택됐다는 경위는 참여자 설명과 팀 작업 기록에 근거합니다.
 
-### 이메일 백그라운드 작업
+서비스의 `model_1`은 DenseNet121·ConvNeXt-Tiny·EfficientNet-B3의 5-fold 앙상블입니다. CLAHE와 384×384 letterbox 전처리 후 백본별 fold 예측을 평균하고 가중 합산합니다. 서비스 저장소의 설정은 가중치 **0.75 / 0.15 / 0.10**, 판단 임계값 **0.36**입니다.
 
-- AI 결과와 Heatmap을 환자 이메일로 전송
-- Celery 전용 `email_queue`에서 HTTP 요청과 분리해 처리
-- `PENDING`, `STARTED`, `SUCCESS`, `RETRY`, `FAILURE` 상태 기록
-- 전송 실패 시 60초 간격, 최대 3회 재시도
-- 개발 환경의 콘솔 전송과 운영 환경의 SMTP 전송 지원
+코드: [추론·Grad-CAM](./worker/models/model_1/model.py) · [앙상블 설정](./worker/models/model_1/best_oof_ensemble_config.json)
 
-## 아키텍처
+### 2. 예측·저장·조회 API와 결과 화면 연결
+
+[PR #68](https://github.com/kimeunmi82/Oz_codingSchool/pull/68)에서 진료기록의 X-ray로 폐렴 예측을 실행하고, 결과와 Grad-CAM Heatmap을 저장·조회하는 기능을 구현했습니다. 예측 결과를 진료기록과 연결해 화면에서 다시 확인할 수 있도록 했습니다.
+
+이후 팀 통합 과정에서 추론은 독립 Worker로 분리됐습니다. 현재 저장소의 호출 경로는 다음과 같습니다.
 
 ```mermaid
-flowchart LR
-    B[Browser] -->|HTTP| F[FastAPI]
-    F -->|사용자·환자·진료기록·결과 저장| M[(MySQL)]
-
-    F -->|XADD: 예측 작업| R[(Redis)]
-    R -->|Consumer Group| A[AI Worker]
-    A -->|X-Ray 추론·Heatmap 생성| V[(Shared Media Volume)]
-    A -->|Pub/Sub + TTL Cache| R
-    R -->|예측 결과| F
-
-    F -->|Celery 작업| R
-    R --> C[Celery Worker]
-    C -->|Console / SMTP| E[Email]
-
-    F --- V
-    C --- V
+flowchart TD
+    X[진료기록의 X-ray] --> API[FastAPI 예측 요청]
+    API --> Q[Redis Stream]
+    Q --> W[AI Worker]
+    W --> A[model_1 어댑터]
+    A --> M[기존 앙상블 모델과 Grad-CAM]
+    M --> R[결과 캐시와 Pub/Sub]
+    R --> SAVE[FastAPI 결과 검증과 MySQL 저장]
+    SAVE --> UI[결과와 Heatmap 조회]
 ```
 
-| 구성 요소 | 책임 |
+*그림: 개인 모델을 호출하는 현재 팀 서비스의 추론 경로. 최초 연동은 본인 PR #68, 이후 워커 분리와 어댑터 구성은 팀 통합 작업입니다.*
+
+| 연결 지점 | 현재 코드의 역할 |
 | --- | --- |
-| FastAPI | HTTP 요청, 인증·인가, 데이터 검증, AI 작업 발행, 예측 결과 영속화 |
-| AI Worker | Redis Stream 소비, X-Ray 전처리, 모델 추론, Heatmap 생성 |
-| Celery Worker | 이메일 생성·전송, 재시도, 작업 상태 갱신 |
-| Redis | AI 작업 큐, Consumer Group, Pub/Sub, TTL 결과 캐시, 분산 락, Celery Broker·Backend |
-| MySQL | 사용자, 환자, 진료기록, X-Ray, AI 분석 결과, 이메일 작업 저장 |
-| Shared Media Volume | FastAPI와 Worker 사이에서 X-Ray 원본과 Heatmap 공유 |
+| [예측 API](./app/apis/prediction_apis.py) | 진료기록별 예측 요청과 결과 조회 진입점 |
+| [예측 서비스](./app/services/prediction_service.py) | 최신 X-ray 선택, 기존 결과 재사용, 작업 발행·결과 대기, DB 저장 |
+| [AI Worker](./worker/main.py) | 작업 소비, 선택한 모델 호출, Heatmap 생성 결과 전달 |
+| [model_1 어댑터](./worker/predictors/model_1.py) | 기존 `predict_with_gradcam` 함수를 공통 `PredictionResult` 형식으로 연결 |
 
-### AI 추론 처리 흐름
+현재 API는 Worker 결과를 기다려 최종 결과를 응답합니다. 워커 분리는 추론 실행 위치를 분리한 것이며, 요청 접수만 반환하는 `202 Accepted` API는 아닙니다.
 
-1. FastAPI가 JWT, 역할·부서, 진료기록과 최신 X-Ray를 검증합니다.
-2. 동일한 `xray_image_id + ai_model`의 유효한 결과가 있으면 즉시 재사용합니다.
-3. 신규 추론이면 결과 채널을 먼저 구독하고 Redis 분산 락을 획득합니다.
-4. 락을 획득한 요청만 `prediction:tasks` Stream에 작업을 등록합니다.
-5. AI Worker가 Consumer Group으로 작업을 가져와 추론과 Heatmap 생성을 수행합니다.
-6. Worker는 결과를 TTL 캐시에 저장하고 Pub/Sub으로 발행한 뒤 작업을 ACK합니다.
-7. FastAPI가 결과를 검증해 MySQL에 저장하고 락을 해제한 후 `200 OK`를 반환합니다.
+### 3. 평가와 운영의 trade-off 구분
 
-현재 예측 API는 작업 접수 직후 `202 Accepted`를 반환하는 방식이 아닙니다. FastAPI가 Worker 결과를 기다린 뒤 최종 예측 결과를 응답합니다.
+무거운 모델 추론을 API 밖에서 실행해도 결과 대기 시간과 장애 처리는 남습니다. 현재 팀 구현은 이미지·모델별 결과 재사용, 분산 락, TTL 결과 캐시, Consumer Group과 DB 유일 제약으로 중복 처리와 결과 누락 위험을 다룹니다. 상세 설계는 [이벤트 기반 처리 문서](./docs/폐렴예측_Event_Driven_프로세스.html)에 정리돼 있습니다.
 
-### 동시성과 장애 복구
+모델의 내부 검증 점수, 사용자 API의 로컬 응답 시간, 실제 서비스의 예측 지연 시간은 서로 다른 검증 항목으로 설명합니다.
 
-- `SET NX EX` 분산 락으로 동일 이미지·모델의 중복 작업 등록을 방지합니다.
-- 락 소유자 ID를 확인하는 Lua 스크립트로 다른 요청의 락이 삭제되지 않게 합니다.
-- Pub/Sub 알림을 놓쳐도 TTL 결과 캐시를 재조회합니다.
-- 장시간 Pending 상태인 작업은 `XAUTOCLAIM`으로 다른 Worker가 회수합니다.
-- Worker는 정상 처리된 작업만 `XACK`하고, `SIGTERM`·`SIGINT` 수신 시 연결을 정리합니다.
-- DB의 `xray_image_id + ai_model` Unique Constraint가 중복 결과 저장을 최종 방어합니다.
+## 검증 결과와 해석 범위
 
-자세한 내용은 [이벤트 기반 처리 문서](./docs/폐렴예측_Event_Driven_프로세스.html)와 [Docker 인프라 문서](./docs/프로젝트_아키텍처_Docker_인프라.md)를 참고하세요.
+### 모델: 저장된 5-fold OOF 내부 검증
 
-## AI 모델 평가
+평가 표본 **5,216장**, threshold **0.36**에서 저장된 혼동행렬은 **TN 1,322 / FP 19 / FN 17 / TP 3,858**입니다.
 
-`model_1`은 DenseNet121, ConvNeXt-Tiny, EfficientNet-B3의 가중 앙상블입니다.
-
-| 항목 | 결과 |
+| 지표 | 저장된 내부 OOF 결과 |
 | --- | ---: |
-| 평가 방식 | 5-fold OOF 검증 |
-| 평가 표본 | 5,216개 |
-| Threshold | 0.36 |
-| Recall | 0.9956 |
-| Accuracy | 0.9931 |
-| F1-score | 0.9954 |
-| AUROC | 0.9995 |
+| OOF Recall | 0.9956 |
+| OOF Accuracy | 0.9931 |
+| OOF F1-score | 0.9954 |
+| OOF AUROC · 설정 기록 | 0.9995 |
+
+[평가 보고서](./reports/model_evaluation.md) · [설정·혼동행렬](./worker/models/model_1/best_oof_ensemble_config.json) · [평가 구현 PR #69](https://github.com/kimeunmi82/Oz_codingSchool/pull/69)
+
+평가 스크립트는 저장된 혼동행렬로 Recall·Accuracy 등을 재계산합니다. **새 X-ray 추론이나 독립 테스트를 수행하지 않으며**, AUROC는 설정 파일에 저장된 값입니다. 기존 X-ray 프로젝트의 다른 threshold·Public 리더보드 결과와 구분합니다. Grad-CAM도 모델 반응을 시각화할 뿐 병변 위치를 확정하지 않습니다.
+
+### 사용자·인증 API: 로컬 Locust 부하 테스트
+
+2026-07-17, FastAPI 서버와 Locust를 **동일한 로컬 장비**에서 실행한 보고서에서 API별 최대 p95는 **420ms**였습니다. 로그인·조회 등 주요 시나리오는 동시 사용자 100명, 초당 10명 증가, 10분 조건이며, 회원가입은 계정 100개를 만드는 burst 시나리오로 별도 측정했습니다.
+
+이는 **사용자·인증 API** 결과입니다. AI 추론 경로의 지연 시간이나 운영 서버 성능을 입증하지 않습니다. [측정 조건·API별 결과·CSV 경로](./docs/NFR-USER-003_성능_테스트_결과.md)와 [개인 구현 PR #38](https://github.com/kimeunmi82/Oz_codingSchool/pull/38)에서 확인할 수 있습니다.
+
+## 팀 서비스 구성과 기술 선택
+
+| 구성 | 기술 | 서비스에서의 용도 |
+| --- | --- | --- |
+| 화면 | HTML·CSS·Vanilla JavaScript | 환자·진료기록·예측 결과와 Heatmap 확인 |
+| API·데이터 | FastAPI·Pydantic·SQLAlchemy AsyncIO·MySQL·Alembic | 요청 검증과 환자·X-ray·예측 결과 관계 저장 |
+| 인증 | JWT·HttpOnly Cookie·Argon2 | 로그인 상태와 역할·부서별 접근 제어 |
+| 모델 | PyTorch·torchvision·OpenCV·Pillow | 기존 앙상블의 전처리·추론·Grad-CAM 생성 |
+| 작업 분리 | Redis Streams·Pub/Sub·Celery | 추론과 이메일 작업을 HTTP 서버의 실행 프로세스에서 분리 |
+| 실행·성능 점검 | Docker Compose·uv·Locust | 팀 로컬 실행 환경 구성과 사용자 API 부하 측정 |
+
+전체 기능·화면·API 설계는 [앱 실행 화면 문서](./docs/7일차_앱_실행화면.md)와 [개발 문서](./docs/)에서 확인할 수 있습니다.
+
+## 로컬 실행과 점검
+
+<details>
+<summary>모델 파일 준비, Docker 실행, 저장된 OOF 재계산</summary>
+
+### 준비
+
+Docker·Docker Compose와 Git LFS가 필요합니다. Python 명령을 직접 실행할 경우 Python 3.13과 uv를 사용합니다.
+
+```bash
+git clone https://github.com/ceohwj/ai-pneumonia-backoffice.git
+cd ai-pneumonia-backoffice
+git lfs install
+git lfs pull
+cp .env.example .env
+```
+
+체크포인트는 Git LFS로 관리됩니다. 해당 LFS 객체에 접근할 수 있어야 하며, `worker/models/model_1/checkpoints/`에 포인터 텍스트 대신 실제 가중치 파일이 준비돼 있어야 추론할 수 있습니다.
+
+`.env`에서 `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `JWT_SECRET_KEY`를 로컬 환경에 맞게 설정합니다. 이메일은 기본 콘솔 모드로 확인할 수 있으며 실제 SMTP 설정은 [이메일 작업 문서](./docs/email-background-tasks.md)를 참고하세요. 비밀값은 저장소에 커밋하지 않습니다.
+
+### 서비스 실행
+
+```bash
+docker compose up --build -d
+docker compose ps
+docker compose exec fastapi alembic upgrade head
+docker compose exec fastapi alembic current
+```
+
+- 웹: <http://localhost:8000>
+- Swagger: <http://localhost:8000/docs>
+- Health Check: <http://localhost:8000/healthcheck>
+
+가입 계정은 초기 `PENDING` 역할입니다. 보호된 기능에는 관리자에 의한 `STAFF` 또는 `ADMIN` 승인이 필요합니다. 최초 로컬 관리자 구성 등 상세 절차는 [팀 원본 실행 문서](https://github.com/kimeunmi82/Oz_codingSchool/blob/3d5b189b1fce8e8068a8b3115fe0151008c2fd26/README.md#시작하기)를 참고하세요.
+
+### 저장된 모델 평가 재계산
 
 ```bash
 uv run python -m worker.models.model_1.evaluate
 uv run python -m worker.models.model_1.evaluate --json
 ```
 
-위 수치는 독립 테스트셋이 아닌 OOF 내부 검증 결과입니다. 실제 임상 성능이나 외부 데이터에 대한 일반화 성능을 의미하지 않으며, Grad-CAM도 병변 위치를 확정하는 진단 결과가 아닙니다. 자세한 혼동행렬과 평가 조건은 [모델 평가 보고서](./reports/model_evaluation.md)를 확인하세요.
-
-## 기술 스택
-
-| 영역 | 기술 |
-| --- | --- |
-| Frontend | HTML, CSS, Vanilla JavaScript |
-| Backend | FastAPI, Pydantic, SQLAlchemy 2.0 AsyncIO |
-| Authentication | JWT, HttpOnly Cookie, Argon2 |
-| Database | MySQL 8.0, Alembic |
-| AI | PyTorch, torchvision, OpenCV, Pillow |
-| Messaging | Redis Streams, Consumer Group, Pub/Sub |
-| Background Job | Celery |
-| Infrastructure | Docker, Docker Compose, uv |
-| Performance Test | Locust |
-
-## 디렉터리 구조
-
-```text
-.
-├── app/
-│   ├── apis/               # FastAPI 라우터
-│   ├── core/               # 설정, 인증·인가, DB, Redis, 성능 미들웨어
-│   ├── models/             # SQLAlchemy ORM 모델
-│   ├── repositories/       # 데이터 접근 계층
-│   ├── schemas/            # 요청·응답 스키마
-│   ├── services/           # 비즈니스 로직
-│   ├── celery_worker.py    # Celery 설정
-│   ├── tasks.py            # 이메일 백그라운드 작업
-│   └── main.py             # FastAPI 진입점
-├── worker/
-│   ├── models/             # AI 모델과 체크포인트
-│   ├── predictors/         # 모델별 추론 어댑터
-│   └── main.py             # Redis Stream AI Worker
-├── static/                 # SPA 화면, 스타일, API 클라이언트
-├── alembic/                # DB 마이그레이션
-├── mysql/                  # MySQL 문자셋 설정
-├── tests/performance/      # Locust 시나리오
-├── reports/                # 모델·성능 평가 결과
-├── docs/                   # 설계와 개발 과정 문서
-├── docker-compose.yml
-├── pyproject.toml
-└── uv.lock
-```
-
-## 시작하기
-
-### 사전 요구사항
-
-- Docker와 Docker Compose
-- 로컬에서 Python 명령을 실행할 경우 Python 3.13과 [uv](https://docs.astral.sh/uv/)
-
-### 1. 환경 변수 설정
-
-프로젝트 루트에 `.env`를 생성합니다.
-
-```dotenv
-DB_USER=root
-DB_PASSWORD=change-me
-DB_NAME=ai_health
-
-JWT_SECRET_KEY=replace-with-a-long-random-secret
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-
-EMAIL_DELIVERY_MODE=console
-```
-
-Docker Compose가 `DB_HOST`, `DB_PORT`, Redis 및 Celery 연결 주소를 컨테이너 환경에 주입합니다. 실제 이메일 전송이 필요하면 다음 값을 추가하세요.
-
-```dotenv
-EMAIL_DELIVERY_MODE=smtp
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_USER=your-user
-SMTP_PASSWORD=your-password
-SMTP_FROM_EMAIL=noreply@example.com
-SMTP_USE_TLS=true
-```
-
-비밀값이 포함된 `.env`는 Git에 커밋하지 마세요.
-
-### 2. 서비스 실행
-
-```bash
-docker compose up --build -d
-docker compose ps
-```
-
-### 3. 데이터베이스 마이그레이션
-
-```bash
-docker compose exec fastapi alembic upgrade head
-docker compose exec fastapi alembic current
-```
-
-### 4. 접속
-
-| 서비스 | 주소 |
-| --- | --- |
-| Web | <http://localhost:8000> |
-| Swagger UI | <http://localhost:8000/docs> |
-| Health Check | <http://localhost:8000/healthcheck> |
-| MySQL | `localhost:3307` |
-| Redis | `localhost:6379` |
-
-회원가입한 계정의 초기 역할은 `PENDING`입니다. 보호된 기능을 확인하려면 기존 관리자가 역할을 `STAFF` 또는 `ADMIN`으로 승인해야 합니다.
-
-최초 관리자 계정이 없는 로컬 개발 환경에서는 회원가입 후 MySQL에 접속해 해당 계정을 한 번만 승격할 수 있습니다.
-
-```bash
-docker compose exec mysql mysql -uroot -p
-```
-
-```sql
-USE ai_health;
-UPDATE users SET role = 'ADMIN' WHERE email = 'admin@example.com';
-```
-
-위 SQL의 이메일은 실제 가입한 계정으로 변경하세요. 운영 환경에서는 직접 SQL을 실행하는 대신 별도의 안전한 초기 관리자 생성 절차를 두는 것이 좋습니다.
-
-### 5. 로그와 종료
+위 명령은 저장된 OOF 혼동행렬 검증이며, 가중치를 로드해 새 이미지로 추론하는 검사가 아닙니다.
 
 ```bash
 docker compose logs -f fastapi ai-worker celery_worker
 docker compose down
 ```
 
-DB와 Redis 데이터를 포함한 Named Volume까지 삭제하려면 `docker compose down -v`를 사용하세요. 이 명령은 저장된 데이터와 미디어를 제거하므로 주의가 필요합니다.
+</details>
 
-### AI Worker 확장
+## 한계와 다음 검증
 
-Consumer Group을 이용해 여러 Worker에 작업을 분산할 수 있습니다.
+- **교육용 로컬 서비스**입니다. 실제 의료 현장 사용, 외부 병원 데이터 및 임상적 유효성을 검증하지 않았습니다.
+- patient-level split과 외부 촬영 조건에 대한 일반화 검증은 별도 과제입니다.
+- 모델의 내부 점수와 사용자 API 성능 측정만으로 업로드→추론→저장→조회 전체 경로의 성능을 보장할 수 없습니다.
+- 다음 단계는 실제 가중치를 갖춘 환경의 통합 테스트, 중복 요청·Worker 중단·결과 누락 상황 재현, 외부 데이터와 임계값·오류 비용 검토입니다.
+- AWS 배포·운영 모니터링은 향후 설계 범위입니다. [배포된 포트폴리오 사례 페이지](https://hyunwoo-jung-portfolio.vercel.app/case-studies/pneumonia-backoffice)는 프로젝트 소개이며 이 백오피스의 운영 데모가 아닙니다.
 
-```bash
-docker compose up --build -d --scale ai-worker=2
-```
+## 30초 설명
 
-## 주요 API
-
-전체 요청·응답 스키마는 실행 후 Swagger UI에서 확인할 수 있습니다.
-
-| 영역 | Method | Endpoint | 설명 |
-| --- | --- | --- | --- |
-| 사용자 | `POST` | `/user_api/v1/users` | 회원가입 |
-| 사용자 | `GET` | `/user_api/v1/users` | 회원 목록 조회 |
-| 사용자 | `PATCH` | `/user_api/v1/users/{user_id}/role` | 회원 역할 변경 |
-| 인증 | `POST` | `/auth_api/v1/auth/login/` | 로그인 |
-| 인증 | `POST` | `/auth_api/v1/auth/refresh/` | Access Token 갱신 |
-| 인증 | `POST` | `/auth_api/v1/auth/logout/` | 로그아웃 |
-| 마이페이지 | `GET` | `/mypage_api/v1/users/me` | 내 정보 조회 |
-| 환자 | `POST`, `GET` | `/patient_api/v1/patients/` | 환자 등록·목록 조회 |
-| 환자 | `GET`, `PATCH`, `DELETE` | `/patient_api/v1/patients/{patient_id}` | 환자 상세·수정·삭제 |
-| 진료기록 | `POST` | `/record_api/v1/record/{patient_id}` | X-Ray 포함 진료기록 등록 |
-| 진료기록 | `GET` | `/record_api/v1/records/{record_id}` | 진료기록 상세 조회 |
-| AI 예측 | `POST` | `/prediction_api/v1/medical-records/{record_id}/predict` | 폐렴 예측 실행 |
-| AI 예측 | `GET` | `/prediction_api/v1/medical-records/{record_id}/analyses` | 저장된 결과 조회 |
-| 이메일 | `POST` | `/email_api/v1/medical-records/{record_id}/email-jobs` | 결과 이메일 작업 생성 |
-| 이메일 | `GET` | `/email_api/v1/email-jobs/{email_job_id}` | 이메일 작업 상태 조회 |
-
-## 검증과 QA
-
-사용자·인증 API는 로컬 환경에서 동시 사용자 100명, 초당 10명 증가, 주요 시나리오별 10분 조건으로 Locust 부하 테스트를 진행했습니다.
-
-| 기준 | 목표 | 측정 결과 |
-| --- | ---: | ---: |
-| 최대 API별 p95 | 3,000ms 이하 | 420ms |
-| 성공률 | 99% 이상 | 100% |
-| HTTP 5xx 오류율 | 1% 미만 | 0% |
-
-이는 2026-07-17 로컬 개발 환경 측정값이며 운영 환경의 성능을 보장하지 않습니다. 세부 조건과 원본 CSV는 [성능 테스트 보고서](./docs/NFR-USER-003_성능_테스트_결과.md)와 `reports/performance/`에서 확인할 수 있습니다.
-
-배포 전에는 다음 항목을 확인합니다.
-
-- 모든 컨테이너와 Health Check가 정상인지
-- Alembic이 최신 Head를 가리키는지
-- 회원가입·로그인과 역할별 접근 제어가 동작하는지
-- 환자·진료기록 CRUD와 X-Ray 업로드가 동작하는지
-- AI 예측, 중복 예측 방지, Heatmap 저장이 동작하는지
-- 이메일 작업 상태와 실패 재시도가 기록되는지
-- MySQL, Redis, Worker 장애 상황에서 오류가 적절히 처리되는지
-
-## 개발 방식
-
-작업은 GitHub Issue를 기준으로 정의하고 `feature/이슈번호` 브랜치에서 개발한 뒤 Pull Request 검토를 거쳐 `main`에 병합했습니다. 하나의 브랜치에는 하나의 작업 목적만 담고, 구현 내용·테스트 결과·관련 Issue를 PR에 기록하는 규칙을 사용했습니다.
-
-프로젝트의 요구사항 정의부터 API 설계, 아키텍처 적용, Docker 인프라와 QA까지의 과정은 `docs/`에 정리되어 있습니다.
-
-## 배포 범위와 향후 과제
-
-현재 구현·검증된 범위는 Docker Compose 기반 로컬 환경입니다. AWS 구성은 아직 배포 완료 상태가 아닌 설계안이며, 운영 전 다음 작업이 필요합니다.
-
-- FastAPI, AI Worker, Celery Worker를 ECS 서비스로 분리
-- MySQL을 RDS, Redis를 ElastiCache, 미디어를 S3 또는 EFS로 이전
-- ALB·ACM·CloudFront를 이용한 HTTPS와 Private Subnet 구성
-- Secrets Manager 기반 비밀값 관리
-- Alembic 일회성 배포 Task와 실패 시 롤백 절차 구성
-- CloudWatch 로그·지표·알람 및 Worker 적체 모니터링
-- 운영용 Uvicorn 설정, Readiness Check, Redis 인증과 네트워크 접근 제한
+웹 서비스 개발을 배우며 AI 폐렴 판독 지원 백오피스를 팀으로 만들었습니다. 개인 X-ray 프로젝트의 최종 모델을 제공하고, 예측 결과와 Grad-CAM을 진료기록에 연결하는 API와 저장·조회 기능을 구현했습니다. X-ray DB 모델, 비밀번호 변경·환자 수정/삭제 API, 로컬 부하 테스트도 담당하며 모델링에서 백엔드 개발로 경험을 넓혔습니다. 전체 서비스는 팀 결과물이며, 내부 OOF·로컬 측정과 실제 임상·운영 성능을 구분합니다.
